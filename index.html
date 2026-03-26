@@ -1,14 +1,48 @@
-<!doctype html>
-<html lang="en">
+<!DOCTYPE html>
+<html lang="pt-BR">
+
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Hello World</title>
-  <link href='/style.css' rel='stylesheet'>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mario Run</title>
+    <link rel="shortcut icon" href="assets/imgs/Mario-ico.ico" type="image/x-icon">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap">
+    <link rel="stylesheet" href="style.css">
 </head>
+
 <body>
-  <h1>Hello, world!</h1>
-  <button onclick="console.log('hello');">Press me</button>
-  <script defer type="text/javascript" src="/main.js"></script>
+
+    <div class="hud">
+        <div class="coin-display">
+            <img src="assets/imgs/coin.gif" class="coin-icon">
+            <span id="coinCount">x 0</span>
+        </div>
+        <div class="score-display">
+            <span class="score-label">PONTOS: </span>
+            <span id="scoreCount">0</span>
+        </div>
+    </div>
+
+    <div class="game-board" id="gameBoard">
+        <img src="assets/imgs/clouds.png" class="cloud" id="cloud">
+        <img src="assets/imgs/mario.gif" class="mario" id="mario">
+        <img src="assets/imgs/pipe.png" class="pipe" id="pipe">
+    </div>
+
+    <p class="hint">ESPAÇO / TOQUE PARA PULAR</p>
+
+    <div class="game-over" id="gameOver">
+        <div class="game-over-box">
+            <h1 class="game-over-title">GAME OVER</h1>
+            <p class="final-score" id="finalScore">PONTOS: 0</p>
+            <p class="final-coins" id="finalCoins">MOEDAS: 0</p>
+            <button class="restart" id="restartButton">REINICIAR</button>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
 </body>
+
 </html>
