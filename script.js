@@ -1,7 +1,7 @@
 const mario = document.getElementById('mario');
 const pipe = document.getElementById('pipe');
 const cloud = document.getElementById('cloud');
-const gameOver = document.getElementById('gameOver');
+const gameOverEl = document.getElementById('gameOver');
 const gameBoard = document.getElementById('gameBoard');
 const restartBtn = document.getElementById('restartButton');
 
@@ -20,11 +20,12 @@ function stopBgMusic() { soundBgMusic.pause(); soundBgMusic.currentTime = 0; }
 
 let score = 0;
 let coins = 0;
+let gameStarted = false;
 let isGameRunning = false;
+let isJumping = false;
 let mainLoop = null;
 let coinSpawnInterval = null;
 let activeCoin = null;
-let firstInteraction = false;
 
 function updateHUD() {
     document.getElementById('coinCount').textContent = 'x ' + coins;
@@ -40,8 +41,7 @@ function spawnCoin() {
 
     const boardW = gameBoard.offsetWidth;
     let posX = boardW * (0.65 + Math.random() * 0.25);
-    coin.style.left = posX + 'px';
-
+    coin.dataset.x = posX;
     gameBoard.appendChild(coin);
     activeCoin = coin;
 
@@ -50,86 +50,94 @@ function spawnCoin() {
     const coinLoop = setInterval(() => {
         if (!isGameRunning) {
             clearInterval(coinLoop);
-            if (coin.parentNode) coin.parentNode.removeChild(coin);
-            if (activeCoin === coin) activeCoin = null;
+            removeCoin(coin);
             return;
         }
 
         posX -= speed;
-        coin.style.left = posX + 'px';
+        coin.dataset.x = posX;
+        coin.style.setProperty('--coin-x', posX + 'px');
 
         const marioRect = mario.getBoundingClientRect();
         const coinRect = coin.getBoundingClientRect();
 
-        const overlap = !(
+        const hit = !(
             coinRect.right < marioRect.left + 20 ||
             coinRect.left > marioRect.right - 20 ||
             coinRect.bottom < marioRect.top + 15 ||
             coinRect.top > marioRect.bottom - 10
         );
 
-        if (overlap && !coin.classList.contains('collected')) {
+        if (hit && !coin.classList.contains('collected')) {
             coin.classList.add('collected');
             playCoin();
             coins++;
             score += 10;
             updateHUD();
-
-            const boardRect = gameBoard.getBoundingClientRect();
-            showScorePopup(coinRect.left - boardRect.left, coinRect.top - boardRect.top);
-
+            spawnScorePopup(coin);
             clearInterval(coinLoop);
-            setTimeout(() => {
-                if (coin.parentNode) coin.parentNode.removeChild(coin);
-                if (activeCoin === coin) activeCoin = null;
-            }, 350);
+            setTimeout(() => removeCoin(coin), 300);
             return;
         }
 
         if (posX < -70) {
             clearInterval(coinLoop);
-            if (coin.parentNode) coin.parentNode.removeChild(coin);
-            if (activeCoin === coin) activeCoin = null;
+            removeCoin(coin);
         }
     }, 10);
 }
 
-function showScorePopup(x, y) {
+function removeCoin(coin) {
+    if (coin.parentNode) coin.parentNode.removeChild(coin);
+    if (activeCoin === coin) activeCoin = null;
+}
+
+function spawnScorePopup(coin) {
     const popup = document.createElement('div');
     popup.className = 'score-popup';
     popup.textContent = '+10';
-    popup.style.left = (x + 10) + 'px';
-    popup.style.top = Math.max(10, y - 10) + 'px';
+    const coinRect = coin.getBoundingClientRect();
+    const boardRect = gameBoard.getBoundingClientRect();
+    popup.style.setProperty('--popup-x', (coinRect.left - boardRect.left + 10) + 'px');
+    popup.style.setProperty('--popup-y', Math.max(10, coinRect.top - boardRect.top - 10) + 'px');
     gameBoard.appendChild(popup);
-    setTimeout(() => {
-        if (popup.parentNode) popup.parentNode.removeChild(popup);
-    }, 800);
+    setTimeout(() => { if (popup.parentNode) popup.parentNode.removeChild(popup); }, 800);
 }
 
-const jump = () => {
-    if (!firstInteraction) {
-        firstInteraction = true;
+function jump() {
+    if (!gameStarted) {
+        gameStarted = true;
+        startLoop();
         startBgMusic();
     }
-    if (mario.classList.contains('jump')) return;
+    if (isJumping) return;
+    isJumping = true;
     playJump();
     mario.classList.add('jump');
-    setTimeout(() => mario.classList.remove('jump'), 500);
-};
+    setTimeout(() => {
+        mario.classList.remove('jump');
+        isJumping = false;
+    }, 500);
+}
 
 function startLoop() {
     isGameRunning = true;
-
-    coinSpawnInterval = setInterval(() => {
-        spawnCoin();
-    }, 2500 + Math.random() * 2000);
-
+    coinSpawnInterval = setInterval(spawnCoin, 2500 + Math.random() * 2000);
     mainLoop = setInterval(() => {
-        const pipePosition = pipe.offsetLeft;
-        const marioBottom = +window.getComputedStyle(mario).bottom.replace('px', '');
+        const marioRect = mario.getBoundingClientRect();
+        const pipeRect = pipe.getBoundingClientRect();
+        const margin = 18;
 
-        if (pipePosition <= 95 && pipePosition > 0 && marioBottom < 55) {
-            triggerGameOver(pipePosition, marioBottom);
+        const hit = !(
+            marioRect.right - margin < pipeRect.left + margin ||
+            marioRect.left + margin > pipeRect.right - margin ||
+            marioRect.bottom - margin < pipeRect.top ||
+            marioRect.top > pipeRect.bottom
+        );
+
+        if (hit) {
+            triggerGameOver();
+            return;
         }
 
         score++;
@@ -145,59 +153,40 @@ function stopLoop() {
     coinSpawnInterval = null;
 }
 
-function triggerGameOver(pipePos, marioBottom) {
+function triggerGameOver() {
     stopLoop();
     stopBgMusic();
     playGameOver();
 
-    pipe.style.animation = 'none';
-    pipe.style.left = pipePos + 'px';
+    pipe.classList.add('frozen');
+    mario.classList.add('dead');
+    mario.classList.remove('jump');
 
-    mario.style.animation = 'none';
-    mario.style.bottom = marioBottom + 'px';
-    mario.src = 'assets/imgs/game-over.png';
-    mario.style.width = '75px';
-    mario.style.marginLeft = '30px';
-
-    if (activeCoin && activeCoin.parentNode) {
-        activeCoin.parentNode.removeChild(activeCoin);
-        activeCoin = null;
-    }
-
+    if (activeCoin) removeCoin(activeCoin);
     document.querySelectorAll('.score-popup').forEach(p => p.remove());
 
     document.getElementById('finalScore').textContent = 'PONTOS: ' + score;
     document.getElementById('finalCoins').textContent = 'MOEDAS: ' + coins;
-    gameOver.style.visibility = 'visible';
+    gameOverEl.classList.add('visible');
 }
 
 function restart() {
-    gameOver.style.visibility = 'hidden';
+    gameOverEl.classList.remove('visible');
 
     score = 0;
     coins = 0;
+    gameStarted = false;
+    isJumping = false;
     updateHUD();
 
-    pipe.style.animation = 'pipe-animations 1.5s infinite linear';
-    pipe.style.left = '';
-
-    mario.src = 'assets/imgs/mario.gif';
-    mario.style.width = '130px';
-    mario.style.bottom = '0px';
-    mario.style.marginLeft = '';
-    mario.style.animation = '';
-
-    cloud.style.left = '';
+    pipe.classList.remove('frozen');
+    mario.classList.remove('dead', 'jump');
 
     document.querySelectorAll('.coin').forEach(c => c.remove());
     document.querySelectorAll('.score-popup').forEach(p => p.remove());
     activeCoin = null;
-
-    startBgMusic();
-    startLoop();
 }
 
-startLoop();
 updateHUD();
 
 document.addEventListener('keydown', (e) => {
@@ -206,5 +195,10 @@ document.addEventListener('keydown', (e) => {
         jump();
     }
 });
-document.addEventListener('touchstart', jump, { passive: true });
+
+document.addEventListener('touchstart', (e) => {
+    if (e.target === restartBtn) return;
+    jump();
+}, { passive: true });
+
 restartBtn.addEventListener('click', restart);
